@@ -17,17 +17,16 @@
   ./ecs_exec
   ```
 
-### 2. **ssm_tunnel**
+### 2. **rds_connect**
 - **概要**: 
 ECS経由でRDSへのポートフォワードを設定するツールです。
 - **主な機能**:
 - AWSプロファイルを指定してRDSクラスタのエンドポイントを取得。
 - ポートフォワードセッションを確立し、ローカルからRDSに接続可能。
-- **利用例**:
 
 ---
 
-## ✅ 必要な環境と前提条件
+## ✅ 開発に必要な環境と前提条件
 
 1. **AWS CLIのインストール**
  - AWS CLI バージョン2を推奨します。
@@ -49,14 +48,11 @@ ECS経由でRDSへのポートフォワードを設定するツールです。
 ### 1. リポジトリのクローン
 
 ### 2. ビルド
-各ツールを以下のコマンドでビルドします。
+以下のコマンドでビルドします。
 
 ```
-# ecs_execのビルド
-go build -o bin/ecs_exec ./cmd/ecs_exec
-
-# ssm_tunnelのビルド
-go build -o bin/ssm_tunnel ./cmd/ssm_tunnel
+# ビルド
+go build -o bin/mc_ops ./cmd
 ```
 
 ---
@@ -73,7 +69,7 @@ ECSタスクへのSSMセッションを開始します。
   4. ユーザー名
   5. 環境（`staging` または `production`）
 
-### **ssm_tunnel**
+### **rds_connect**
 RDSへのポートフォワードを設定します。
 
 - 実行後、対話形式で以下を指定します:
@@ -90,31 +86,30 @@ RDSへのポートフォワードを設定します。
 
 ```
 .
-├── cmd/
-│   ├── ecs_exec/
-│   │   └── main.go
-│   └── ssm_tunnel/
-│       └── main.go
-├── internal/
-│   ├── aws/
-│   │   ├── assume_role.go
-│   │   ├── ecs_tasks.go
-│   │   ├── ecs_target.go
-│   │   ├── rds_clusters.go
-│   │   └── ssm_session.go
-│   ├── config/
-│   │   ├── config.go
-│   │   └── config.json
-│   └── input/
-│       ├── get_user_input.go
-│       ├── select_profile.go
-│       └── select_municipality.go
-├── bin/
-│   ├── ecs_exec
-│   └── ssm_tunnel
+├── README.md
+├── bin
+│   └── mc_ops
+├── cmd
+│   ├── ecs_exec.go
+│   ├── init.go
+│   ├── main.go
+│   └── rds_connect.go
 ├── go.mod
 ├── go.sum
-└── README.md
+└── internal
+    ├── aws
+    │   ├── assume_role.go
+    │   ├── ecs_target.go
+    │   ├── ecs_tasks.go
+    │   ├── rds_clusters.go
+    │   └── ssm_session.go
+    ├── config
+    │   ├── config.go
+    │   └── config.json
+    └── input
+        ├── getUserInput.go
+        ├── selectMunicipality.go
+        └── selectProfile.go
 ```
 
 ---

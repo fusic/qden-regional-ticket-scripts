@@ -6,9 +6,20 @@ import (
 	"qden-regional-ticket-scripts/internal/aws"
 	"qden-regional-ticket-scripts/internal/config"
 	"qden-regional-ticket-scripts/internal/input"
+
+	"github.com/spf13/cobra"
 )
 
-func main() {
+// `rds connect` コマンドを定義（*cobra.Command 型にする）
+var rdsConnectCmd = &cobra.Command{
+	Use:   "rds connect",
+	Short: "ECS経由でRDSのポートフォワードを開始",
+	Run: func(cmd *cobra.Command, args []string) {
+		executeRdsConnect()
+	},
+}
+
+func executeRdsConnect() {
 	// プロファイル選択
 	selectedProfile := input.SelectProfile()
 

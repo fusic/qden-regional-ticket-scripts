@@ -6,9 +6,20 @@ import (
 	"qden-regional-ticket-scripts/internal/aws"
 	"qden-regional-ticket-scripts/internal/config"
 	"qden-regional-ticket-scripts/internal/input"
+
+	"github.com/spf13/cobra"
 )
 
-func main() {
+// `ecs exec` コマンド
+var ecsExecCmd = &cobra.Command{
+	Use:   "ecs exec",
+	Short: "ECSタスクにSSMセッションを開始",
+	Run: func(cmd *cobra.Command, args []string) {
+		executeEcsExec()
+	},
+}
+
+func executeEcsExec() {
 	// プロファイル選択
 	selectedProfile := input.SelectProfile()
 
