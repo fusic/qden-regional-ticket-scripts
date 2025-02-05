@@ -30,8 +30,7 @@ func executeRdsConnect() {
 	container := input.GetUserInput("接続先コンテナを選択", "api", []string{"api", "backend"})
 
 	// 自治体選択
-	municipality := input.GetMunicipalityInput("自治体を選択または検索")
-	accountID := input.MunicipalityMap[municipality]
+	municipality, accountID := input.GetMunicipalityInput("自治体を選択または検索")
 
 	// ユーザー名を取得
 	conf := config.LoadConfig()
