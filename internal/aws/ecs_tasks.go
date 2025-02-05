@@ -1,27 +1,40 @@
 package aws
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"os/exec"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
 )
 
+// GetFirstTaskArn は指定したECSクラスター内の最初のタスクARNを取得
 func GetFirstTaskArn(cluster string) (string, error) {
-	cmd := exec.Command("aws", "ecs", "list-tasks", "--cluster", cluster, "--service-name", cluster)
-	output, err := cmd.Output()
+	// AWS SDK のデフォルト設定をロード
+	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		return "", fmt.Errorf("ECSタスクの取得に失敗しました: %v", err)
+		return "", fmt.Errorf("AWS設定のロードに失敗しました: %w", err)
 	}
 
-	var taskData map[string]interface{}
-	if err := json.Unmarshal(output, &taskData); err != nil {
-		return "", fmt.Errorf("タスクデータの解析に失敗しました: %v", err)
+	// ECS クライアントを作成
+	ecsClient := ecs.NewFromConfig(cfg)
+
+	// ECS タスクのリストを取得
+	resp, err := ecsClient.ListTasks(context.TODO(), &ecs.ListTasksInput{
+		Cluster:     &cluster,
+		ServiceName: &cluster, // サービス名を指定
+		MaxResults:  aws.Int32(1),        // 最初のタスク1件のみ取得
+	})
+	if err != nil {
+		return "", fmt.Errorf("ECSタスクの取得に失敗しました: %w", err)
 	}
 
-	taskArns := taskData["taskArns"].([]interface{})
-	if len(taskArns) == 0 {
+	// タスクが見つからない場合
+	if len(resp.TaskArns) == 0 {
 		return "", fmt.Errorf("タスクが見つかりませんでした")
 	}
 
-	return taskArns[0].(string), nil
+	// 最初のタスクARNを返す
+	return resp.TaskArns[0], nil
 }

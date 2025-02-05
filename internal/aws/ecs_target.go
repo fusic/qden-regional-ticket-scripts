@@ -1,31 +1,50 @@
 package aws
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"os/exec"
 	"strings"
+
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
 )
 
+// GetTaskTarget は、指定された ECS タスクのコンテナ情報を取得し、
+// `php` を含むコンテナの `runtimeId` を返す
 func GetTaskTarget(cluster, taskArn string) (string, error) {
-	cmd := exec.Command("aws", "ecs", "describe-tasks", "--cluster", cluster, "--task", taskArn)
-	output, err := cmd.Output()
+	// AWS SDK のデフォルト設定をロード
+	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		return "", fmt.Errorf("タスク詳細の取得に失敗しました: %v", err)
+		return "", fmt.Errorf("AWS設定のロードに失敗しました: %w", err)
 	}
 
-	var descData map[string]interface{}
-	if err := json.Unmarshal(output, &descData); err != nil {
-		return "", fmt.Errorf("タスク詳細データの解析に失敗しました: %v", err)
+	// ECS クライアントを作成
+	ecsClient := ecs.NewFromConfig(cfg)
+
+	// ECS タスクの詳細を取得
+	resp, err := ecsClient.DescribeTasks(context.TODO(), &ecs.DescribeTasksInput{
+		Cluster: &cluster,
+		Tasks:   []string{taskArn},
+	})
+	if err != nil {
+		return "", fmt.Errorf("ECSタスクの詳細取得に失敗しました: %w", err)
 	}
 
-	containers := descData["tasks"].([]interface{})[0].(map[string]interface{})["containers"].([]interface{})
-	for _, container := range containers {
-		c := container.(map[string]interface{})
-		if strings.Contains(c["name"].(string), "php") {
-			return fmt.Sprintf("%s_%s", strings.Split(c["runtimeId"].(string), "-")[0], c["runtimeId"].(string)), nil
+	// タスクが存在しない場合
+	if len(resp.Tasks) == 0 {
+		return "", fmt.Errorf("指定されたタスクが見つかりませんでした")
+	}
+
+	// コンテナ情報を検索
+	for _, container := range resp.Tasks[0].Containers {
+		if strings.Contains(*container.Name, "php") {
+			if container.RuntimeId == nil {
+				return "", fmt.Errorf("対象コンテナの runtimeId が見つかりませんでした")
+			}
+			runtimeID := *container.RuntimeId
+			return fmt.Sprintf("%s_%s", strings.Split(runtimeID, "-")[0], runtimeID), nil
 		}
 	}
 
-	return "", fmt.Errorf("ターゲットが見つかりませんでした")
+	return "", fmt.Errorf("ターゲットのコンテナが見つかりませんでした")
 }

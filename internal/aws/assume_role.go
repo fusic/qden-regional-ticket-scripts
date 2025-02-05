@@ -1,9 +1,11 @@
 package aws
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"os/exec"
+
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
 
 type AWSCredentials struct {
@@ -14,26 +16,34 @@ type AWSCredentials struct {
 
 // AssumeRole AWSのAssumeRoleを実行してクレデンシャルを取得
 func AssumeRole(roleArn, sessionName, externalID string) (*AWSCredentials, error) {
-	cmd := exec.Command("aws", "sts", "assume-role",
-		"--role-arn", roleArn,
-		"--role-session-name", sessionName,
-		"--external-id", externalID,
-	)
-
-	output, err := cmd.Output()
+	// AWS SDK のデフォルト設定をロード
+	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		return nil, fmt.Errorf("AssumeRoleの実行に失敗しました: %v", err)
+		return nil, fmt.Errorf("AWS設定のロードに失敗しました: %w", err)
 	}
 
-	var creds map[string]interface{}
-	if err := json.Unmarshal(output, &creds); err != nil {
-		return nil, fmt.Errorf("クレデンシャル情報の解析に失敗しました: %v", err)
+	// STS クライアントを作成
+	stsClient := sts.NewFromConfig(cfg)
+
+	// AssumeRole を実行
+	resp, err := stsClient.AssumeRole(context.TODO(), &sts.AssumeRoleInput{
+		RoleArn:         &roleArn,
+		RoleSessionName: &sessionName,
+		ExternalId:      &externalID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("AssumeRoleの実行に失敗しました: %w", err)
 	}
 
-	awsCreds := creds["Credentials"].(map[string]interface{})
+	// クレデンシャルを取得
+	creds := resp.Credentials
+	if creds == nil {
+		return nil, fmt.Errorf("AssumeRoleに成功しましたが、クレデンシャルが返されませんでした")
+	}
+
 	return &AWSCredentials{
-		AccessKeyID:     awsCreds["AccessKeyId"].(string),
-		SecretAccessKey: awsCreds["SecretAccessKey"].(string),
-		SessionToken:    awsCreds["SessionToken"].(string),
+		AccessKeyID:     *creds.AccessKeyId,
+		SecretAccessKey: *creds.SecretAccessKey,
+		SessionToken:    *creds.SessionToken,
 	}, nil
 }

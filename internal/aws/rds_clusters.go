@@ -1,33 +1,40 @@
 package aws
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"os/exec"
+
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
 )
 
+// GetRdsEndpoint は、最初の RDS クラスタのエンドポイントを取得する
 func GetRdsEndpoint() (string, error) {
-	cmd := exec.Command("aws", "rds", "describe-db-clusters", "--output", "json")
-	output, err := cmd.Output()
+	// AWS SDK のデフォルト設定をロード
+	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		return "", fmt.Errorf("RDSクラスタ情報の取得に失敗しました: %v", err)
+		return "", fmt.Errorf("AWS設定のロードに失敗しました: %w", err)
 	}
 
-	var rdsData map[string]interface{}
-	if err := json.Unmarshal(output, &rdsData); err != nil {
-		return "", fmt.Errorf("レスポンスの解析に失敗しました: %v", err)
+	// RDS クライアントを作成
+	rdsClient := rds.NewFromConfig(cfg)
+
+	// RDS クラスタ情報を取得
+	resp, err := rdsClient.DescribeDBClusters(context.TODO(), &rds.DescribeDBClustersInput{})
+	if err != nil {
+		return "", fmt.Errorf("RDSクラスタ情報の取得に失敗しました: %w", err)
 	}
 
-	dbClusters, ok := rdsData["DBClusters"].([]interface{})
-	if !ok || len(dbClusters) == 0 {
+	// クラスタが存在しない場合
+	if len(resp.DBClusters) == 0 {
 		return "", fmt.Errorf("RDSクラスタが見つかりませんでした")
 	}
 
-	firstCluster := dbClusters[0].(map[string]interface{})
-	endpoint, exists := firstCluster["Endpoint"].(string)
-	if !exists {
+	// 最初のクラスタのエンドポイントを取得
+	firstCluster := resp.DBClusters[0]
+	if firstCluster.Endpoint == nil {
 		return "", fmt.Errorf("エンドポイントが見つかりませんでした")
 	}
 
-	return endpoint, nil
+	return *firstCluster.Endpoint, nil
 }
