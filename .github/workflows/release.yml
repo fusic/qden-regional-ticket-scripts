@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [linux, darwin, windows]
+        arch: [amd64, arm64]
+        exclude:
+          - os: windows
+            arch: arm64
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+
+      - name: Goのセットアップ
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: バイナリをビルド
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: 0
+        run: |
+          go build -o mc-ops-${{ matrix.os }}-${{ matrix.arch }} ./cmd/mc_ops
+
+      - name: ZIPアーカイブ作成 (Windows)
+        if: matrix.os == 'windows'
+        run: |
+          zip mc-ops-${{ matrix.os }}-${{ matrix.arch }}.zip mc-ops-${{ matrix.os }}-${{ matrix.arch }}
+
+      - name: TGZアーカイブ作成 (Linux / macOS)
+        if: matrix.os != 'windows'
+        run: |
+          tar -czvf mc-ops-${{ matrix.os }}-${{ matrix.arch }}.tgz mc-ops-${{ matrix.os }}-${{ matrix.arch }}
+
+      - name: アーティファクトをアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: mc-ops-*.{zip,tgz}
+
+  upload:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: アーティファクトをダウンロード
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries
+          path: assets
+
+      - name: GitHub Releasesにアップロード
+        run: gh release upload "$GITHUB_REF_NAME" assets/*
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
