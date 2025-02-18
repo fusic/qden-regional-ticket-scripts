@@ -33,7 +33,7 @@ jobs:
           GOARCH: ${{ matrix.arch }}
           CGO_ENABLED: 0
         run: |
-          go build -o mc-ops-${{ matrix.os }}-${{ matrix.arch }} ./cmd/mc_ops
+          go build -o mc-ops-${{ matrix.os }}-${{ matrix.arch }} ./cmd
 
       - name: ZIPアーカイブ作成 (Windows)
         if: matrix.os == 'windows'
