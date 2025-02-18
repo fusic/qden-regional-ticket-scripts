@@ -1,19 +1,12 @@
 name: Release
 
 on:
-  release:
-    types:
-      - published
+  push:
+    tags:
+      - '*'
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        os: [linux, darwin, windows]
-        arch: [amd64, arm64]
-        exclude:
-          - os: windows
-            arch: arm64
+  release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -22,57 +15,14 @@ jobs:
       - name: チェックアウト
         uses: actions/checkout@v4
 
-      - name: Goのセットアップ
+      - name: Set up Go
         uses: actions/setup-go@v5
-        with:
-          go-version: stable
 
-      - name: バイナリをビルド
+      - name: GoReleaser を実行
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean
         env:
-          GOOS: ${{ matrix.os }}
-          GOARCH: ${{ matrix.arch }}
-          CGO_ENABLED: 0
-        run: |
-          go build -o mc-ops-${{ matrix.os }}-${{ matrix.arch }} ./cmd
-          ls -lh mc-ops-${{ matrix.os }}-${{ matrix.arch }} || (echo "Build failed: バイナリが作成されていません"; exit 1)
-
-      - name: ZIPアーカイブ作成 (Windows)
-        if: matrix.os == 'windows'
-        run: |
-          zip -r mc-ops-${{ matrix.os }}-${{ matrix.arch }}.zip mc-ops-${{ matrix.os }}-${{ matrix.arch }} || exit 1
-
-      - name: TGZアーカイブ作成 (Linux / macOS)
-        if: matrix.os != 'windows'
-        run: |
-          tar -czvf mc-ops-${{ matrix.os }}-${{ matrix.arch }}.tgz mc-ops-${{ matrix.os }}-${{ matrix.arch }} || exit 1
-
-      - name: 圧縮後のファイル確認
-        run: ls -lh mc-ops-*
-
-      - name: アーティファクトをアップロード
-        uses: actions/upload-artifact@v4
-        with:
-          name: binaries-${{ matrix.os }}-${{ matrix.arch }}
-          path: mc-ops-${{ matrix.os }}-${{ matrix.arch }}.*
-
-  upload:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: すべてのアーティファクトをダウンロード
-        uses: actions/download-artifact@v4
-        with:
-          name: binaries-*
-          path: assets
-          merge-multiple: true
-
-      - name: ダウンロードしたアーティファクトの確認
-        run: ls -lh assets/
-
-      - name: GitHub Releasesにアップロード
-        run: gh release upload "$GITHUB_REF_NAME" assets/*
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

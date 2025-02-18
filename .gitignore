@@ -77,4 +77,5 @@ Temporary Items
 .history
 .ionide
 
-# End of https://www.toptal.com/developers/gitignore/api/go,visualstudiocode,macos
+# End of https://www.toptal.com/developers/gitignore/api/go,visualstudiocode,macos# Added by goreleaser init:
+dist/
